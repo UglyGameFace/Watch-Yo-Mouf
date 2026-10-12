@@ -26,7 +26,7 @@
 
 ## Validation
 - Repository existence and emptiness verified using connected GitHub read actions.
-- Six configuration tests passed locally; `compileall` passed locally. Local environment cannot install `discord.py` due blocked package network, so gateway-import smoke test is only queued for GitHub Actions. No exact-head CI, actual Discord login, end-to-end DAVE/multi-speaker test, mobile acceptance or Discloud runtime acceptance.
+- Six configuration tests passed locally; `compileall` passed locally. Local package install was blocked by network restrictions. GitHub Actions installed pinned `discord.py==2.7.1`, compiled the project and passed all **9 unit tests** for Python 3.11 and Python 3.13 on implementation SHA `0adbe820af42f244d58aed8cf1dfcdb282ec5207`. Original CI failure was test cleanup calling `AutoShardedClient.close()` before login initialized its internal shard queue; corrected the test to not close a never-connected client and added direct admin authorization checks. Real Discord login, DAVE/multi-speaker tests, Android or Discloud acceptance and 10k-usage load remain unverified.
 - No access to Discord Developer Portal credentials via GitHub. Do not request posting secrets into chat.
 
 ## Cleanup and conflicts
@@ -41,6 +41,11 @@
 
 ## Backlog
 - Rich multi-VC policy, additional model vendors, optional auto-enforcement and claimed competitor superiority only after the initial live receive/advisory flow and validation meet DoD.
+
+## Pull request checkpoint
+- Draft PR: https://github.com/UglyGameFace/Watch-Yo-Mouf/pull/1; base `main` at `0b61a56b5511c87c8ee1f3975892861076ce8eb7`.
+- Focused GitHub Actions run #38316601314: Python 3.11 and 3.13 jobs passed after fixing unconnected-client cleanup. Do not merge based solely on unit checks. Source remains gateway-only, audio entirely inactive.
+- RAM allocation `1024 MB` is an initial canary budget, **not** a tested figure for 10,000 guilds or concurrent rooms. Use separate workers, measured caches and budgets before scaling.
 
 ## Next step
 Validate this draft gateway bootstrap CI and real Discord login on a consenting test guild; then trace the current Dank Shield voice consent/store and pinned `community_voice_receive.py` DAVE receive implementation before writing any Watch Yo Mouf audio canary. Keep receiver/consent/policy migration as the **same active task** and leave listening disabled until the privacy and DAVE gates pass.
