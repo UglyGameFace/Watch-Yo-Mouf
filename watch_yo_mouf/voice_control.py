@@ -189,9 +189,11 @@ class ControlGate:
     def __init__(self) -> None:
         self._guilds: dict[int, GuildControlStatus] = {}
 
-    def apply(self, message: ControlMessage) -> GuildControlStatus:
-        if not isinstance(message, ControlMessage):
-            raise ControlMessageRejected("control message not authenticated")
+    def apply_signed(
+        self, raw: bytes, key: bytes, *, now: int | None = None,
+    ) -> GuildControlStatus:
+        """Verify the HMAC, lifetime and schema before changing any state."""
+        message = verify_control(raw, key, now=now)
         current = self._guilds.get(message.guild_id)
         if current and message.sequence <= current.last_sequence:
             raise ControlMessageRejected("stale or replayed control sequence")
