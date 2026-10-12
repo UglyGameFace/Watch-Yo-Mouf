@@ -1,0 +1,43 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node.js (if the validated DAVE stack uses Node)
+node_modules/
+.npm/
+coverage/
+*.tsbuildinfo
+
+# Runtime/logs/audio/incident evidence
+*.log
+logs/
+tmp/
+temp/
+audio/
+recordings/
+incidents/
+*.wav
+*.mp3
+*.ogg
+*.opus
+*.pcm
