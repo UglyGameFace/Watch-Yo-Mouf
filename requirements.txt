@@ -1,3 +1,4 @@
 discord.py[voice]==2.7.1
 discord-ext-voice-recv @ git+https://github.com/imayhaveborkedit/discord-ext-voice-recv.git@03dd1e2dafe85522cc458441cd5b143b136ac836
 opuslib-next-bundled==0.1.1
+aiohttp>=3.12.0,<4.0.0
