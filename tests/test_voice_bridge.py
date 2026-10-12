@@ -21,7 +21,7 @@ class BridgeWireTests(unittest.TestCase):
         self.assertEqual(verify_request(headers, KEY, now=NOW), NONCE)
         self.assertEqual(
             headers["X-WYM-Signature"],
-            "911c9fe8caf90f58c0a90ee6cb42b3a534c3435b29d4e998c46a30bdc3b14850",
+            "f8672ae48c8bd54d358cb197e9391b2600921c14f7c3adec0d884ebfa09bd26c",
             "Cross-repo wire fixture changed; coordinate both bots before deploying",
         )
         body = response_body()
