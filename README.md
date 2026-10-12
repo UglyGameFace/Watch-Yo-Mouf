@@ -2,7 +2,7 @@
 
 Dedicated Discord voice-safety companion for [Dank Shield](https://github.com/UglyGameFace/Dank-Shield).
 
-**Status:** The independent Discord gateway has passed a live `/watchyo` command response on Android. The voice decoder prerequisite probe is proposed in a separate PR. **Audio receive, transcription, moderation, and cross-bot control-plane integration are not implemented or enabled in this companion.**
+**Status:** The independent Discord gateway has passed a live `/watchyo` command response on Android. The DAVE decoder prerequisite checks have passed CI on PR #2, which is merged. A private transport diagnostic is now in development. **Audio receive, transcription, moderation, and cross-bot control-plane integration are not implemented or enabled in this companion.**
 
 ## Mission
 
@@ -102,3 +102,13 @@ The signed JSON envelope has exactly `{"payload": {...}, "signature": "<sha256 h
 No extra `WATCH_YO_MOUF_*` environment variables are needed for this proposed offline contract. Provision a separate service-to-service key **only when** a real authenticated transport is implemented and reviewed; do not reuse the Discord token, Gemini API key, or Dank Shield's existing general Bot API secret.
 
 Run `python -m unittest discover -s tests -v`; CI on Python 3.11 and 3.13 covers signed-envelope validation, tamper/replay/expiry protection, revocation precedence, and deny-by-default audio admission. This is not a live network or DAVE decryption acceptance test.
+
+## Private Discloud VLAN handshake (two-repository staged rollout)
+
+Dank Shield already has `VLAN=true` and `HOSTNAME=dankbot` on its site deployment. Discloud's private VLAN connects applications without adding a public route; the separate bot joins with `VLAN=true` and `HOSTNAME=watchyomouf`. The only new endpoint is a dedicated `GET http://dankbot:8097/v1/status` inside the VLAN, and it remains **off** until the host explicitly enables it. It does not alter the existing structured Bot API at `127.0.0.1:8081` or the site's public 8080 ingress.
+
+The handshake uses a **separate shared random secret** (at least 32 bytes) and signed requests with a 30-second maximum clock skew and one-time nonce. Dank Shield rejects replay attempts and signs a fixed response stating it remains the policy/receiver authority and **voice_capture_authorized=false**. Watch Yo Mouf checks that signed reply on demand in staff-only `/watchyo`. It reports "authenticated (diagnostics only)" when successful, "disabled" by default, and "unavailable" for any auth/network/timeout/error failure. No member or guild records, sound, transcriptions, or credentials are transmitted.
+
+**Deploy in this order after both narrow PRs pass:** (1) Merge/deploy the paired **Dank Shield** PR onto the exact Discloud integration branch (not a different `main` branch); (2) merge/deploy this **Watch Yo Mouf** PR, keeping RAM at 768 MB; (3) generate one strong random secret offline and configure it under `DANK_VOICE_BRIDGE_SECRET` and `WATCH_YO_MOUF_BRIDGE_SECRET` respectively without committing it; (4) enable `DANK_VOICE_BRIDGE_ENABLED=true` and `WATCH_YO_MOUF_BRIDGE_ENABLED=true`, restart both; (5) use `/watchyo` to verify the signed VLAN handshake. Turn either enabled flag back off to disable the diagnostic. Do not set an unverified random placeholder or reuse Discord/Gemini/API tokens.
+
+This is a **network and authentication canary only**, not live policy synchronization, cross-process fencing, consent verification, Gemini processing, or the start of monitoring. After successful real Discloud tests, future work must add authoritative and durable lease ownership, per-member fresh consent checks, immediate opt-out, event ordering after restarts, and a controlled DAVE decode canary. VLAN visibility, DNS reachability, port policy, latency, deployment branch, RAM and process behavior have NOT yet been verified on your live Discloud containers.
