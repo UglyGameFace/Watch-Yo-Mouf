@@ -2,7 +2,7 @@
 
 Dedicated Discord voice-safety companion for [Dank Shield](https://github.com/UglyGameFace/Dank-Shield).
 
-**Status: independent gateway bootstrap proposed in a draft PR. Audio capture, transcription, moderation, and Dank Shield integration are not implemented or deployed.** Creating a Discord Developer Portal application alone does not start a bot.
+**Status:** The independent Discord gateway has passed a live `/watchyo` command response on Android. The voice decoder prerequisite probe is proposed in a separate PR. **Audio receive, transcription, moderation, and cross-bot control-plane integration are not implemented or enabled in this companion.**
 
 ## Mission
 
@@ -65,11 +65,11 @@ Use a short-lived in-memory audio pipeline with backpressure, fair guild schedul
 
 Store **the Watch Yo Mouf bot token** only in its separate deployment environment (never in GitHub source, README, screenshots or issues). The same rule applies to Gemini API credentials and any future signed control-plane credentials. Do not enable voice monitoring merely because env variables exist.
 
-The Discord Developer Portal app and repository are already created. Hosting is **not yet verified**; no invite, deployed process, running gateway or functioning AI pipeline is claimed.
+The Discord Developer Portal app is installed in a test guild and the owner provided a live `/watchyo` response screenshot showing its gateway online. This verifies only command routing, not audio processing, provider access, or capacity.
 
 ## Gateway bootstrap (not yet voice moderation)
 
-This repo includes an independent Python 3.11 Discord gateway app, configured through `discloud.config` with an initial **1024 MB** allocation. It deliberately enables only Guild and Voice State gateway intents. No microphone connection, DAVE receive, audio buffers, transcription, AI review or staff enforcement runs in this release. The standalone `/watchyo` staff-only command reports this state honestly.
+This repo includes an independent Python 3.11 Discord gateway app, configured through `discloud.config` with a **768 MB** allocation. It deliberately enables only Guild and Voice State gateway intents. No microphone connection, DAVE receive, audio buffers, transcription, AI review or staff enforcement runs in this release. The standalone `/watchyo` staff-only command reports this state honestly.
 
 Set `WATCH_YO_MOUF_TOKEN` **only** in the new bot's Discloud environment. To register the global /watchyo command, enable `WATCH_YO_MOUF_SYNC_COMMANDS=true` for one successful start, then disable command sync. Use `python main.py` locally only with a separately provisioned token. No token or provider credentials are needed for offline tests. Do not use Dank Shield's Discord token.
 
@@ -78,3 +78,12 @@ Automatic sharding follows Discord's gateway recommendation. Advanced deployment
 Testing: `python -m unittest discover -s tests -v`, followed by `python -m compileall -q main.py watch_yo_mouf tests`. GitHub Actions executes those checks with Python 3.11 and 3.13. Live Discord, DAVE, Discloud deployment and high-concurrency capacity are not validated by those offline checks.
 
 Source inspection in Dank Shield (main) identified the established `community_voice_caption_runtime.py` → `community_voice_receive.py` boundary, with a pinned DAVE-specific `discord-ext-voice-recv` source in its requirements. Companion extraction must validate live DAVE decode and keep Dank Shield's existing receiver authoritative until safe ownership cutover.
+
+
+## DAVE and Opus dependency preflight (no listening)
+
+The separate Watch Yo Mouf host now pins the same `discord.py[voice]==2.7.1` and reviewed `discord-ext-voice-recv` DAVE commit (`03dd1e2dafe85522cc458441cd5b143b136ac836`) used by Dank Shield's receive stack, plus `opuslib-next-bundled==0.1.1`. The staff-only `/watchyo` checks that `davey` imports, the receive extension exposes the inbound `PacketDecoder._dave_decrypt` hook, and native libopus can instantiate a real PCM decoder.
+
+The result distinguishes **dependency/ABI preflight** from a **real live DAVE decode**. Even a passing preflight does not prove the companion decrypted audio, mapped a speaking member, complied with consent, or delivered an AI verdict. No voice connection, audio buffer, transcription, moderation, or automatic startup is added. A failing check leaves voice safety off and reports a non-secret dependency reason.
+
+Next acceptance: verify the updated Discloud build starts under 768 MB; rerun `/watchyo` and confirm prerequisites, then work on a consented, single-room DAVE canary with explicit independent control-plane authority and reliable revocation. Do **not** enable monitoring or remove Dank Shield's authoritative receiver solely because this dependency preflight passes.
