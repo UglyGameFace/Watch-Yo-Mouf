@@ -2,7 +2,7 @@
 
 **Outcome:** Establish and validate an independently hosted voice moderation companion for Dank Shield, preserving its stable core bot.
 **Scope:** Initial independent service architecture, private signed control-plane contract, explicit per-member agreement and revocation, DAVE per-speaker receive, bounded AI processing, staff-only incidents, safe migration and capacity validation.
-**Status:** Standalone gateway bootstrap implemented on draft branch `feat/independent-gateway-bootstrap-20261012`; local configuration tests and syntax validation pass. GitHub CI, real dependency import, Discord login, DAVE receive, voice conduct classification and Discloud rollout are **not** yet validated. Do not label voice moderation functional.
+**Status:** PR #1 gateway bootstrap merged; user set Discloud RAM to 768 MB and provided a live Discord `/watchyo` response (gateway online). Voice processing remains disabled. Next isolated slice is a read-only DAVE/Opus dependency preflight on `feat/dave-dependency-preflight-20261012`; live DAVE decode, consented voice admission, cross-bot control, AI triage and capacity remain unvalidated.
 
 ## Findings
 - Repository `UglyGameFace/Watch-Yo-Mouf` was empty on 2026-10-12, before initialization.
@@ -49,3 +49,17 @@
 
 ## Next step
 Validate this draft gateway bootstrap CI and real Discord login on a consenting test guild; then trace the current Dank Shield voice consent/store and pinned `community_voice_receive.py` DAVE receive implementation before writing any Watch Yo Mouf audio canary. Keep receiver/consent/policy migration as the **same active task** and leave listening disabled until the privacy and DAVE gates pass.
+
+## 2026-10-12 continuation: DAVE dependency prerequisite slice
+
+- **Scope:** Continue active Watch Yo Mouf / Dank Shield Voice Safety #517, no unrelated bot changes.
+- **Current branch:** `feat/dave-dependency-preflight-20261012`, from merged Watch Yo Mouf `main` SHA `3c0957b244094b8c853a21bf682ce6248559cafe`. PR #1 merged and `discloud.config` is already `RAM=768` per owner.
+- **Live checkpoint:** User-provided Discord screenshot of `/watchyo` confirms application installation, command registration, a responding bot gateway, and voice safety disabled. This is **not** proof of audio receive or STT.
+- **Source trace:** Dank Shield's voice-safety integration branch `aaa-cinema-pre-pregateway-bind` at SHA `81b85ce16a3c84209e7cb7b3853d334604bafae6`: `voice_safety_consent.py` owns versioned member acceptance in existing member settings, `public_voice_safety.py` owns staff configuration/notice, `community_voice_caption_runtime.py` and `community_voice_receive.py` own the in-process DAVE receive lifecycle, `voice_safety_policy.py` owns advisory classification. Current standalone Watch Yo Mouf must **not** duplicate those authorities or start a competing capture listener.
+- **Dependency finding:** Current Dank Shield receive pins discord.py[voice] 2.7.1, voice_recv commit `03dd1e2dafe85522cc458441cd5b143b136ac836` (inbound `_dave_decrypt`), and bundled libopus 0.1.1. The pinned upstream commit was inspected; static DAVE hook presence is not proof of real decoded traffic.
+- **Changes:** Watch Yo Mouf requirements now pin the identical receive/Opus stack; `voice_readiness.py` performs import/hook/native decoder readiness only, with explicit failure reasons and no microphone connection. Staff-only `/watchyo` reports prerequisite status while continuing to say voice moderation is disabled. CI adds real import/native ABI and negative tests. README refreshed with deployment state and limits.
+- **Validation:** Pending exact-head GitHub Actions (Python 3.11 and 3.13) and diff review. No local networked install or Discord DAVE call was performed in this change; Discloud 768 MB dependency install/load and speaker tests require later canaries.
+- **Cleanup/conflicts:** No existing companion receive implementation was replaced; current Dank Shield capture code remains untouched. No raw audio/transcripts introduced or persisted.
+- **Blockers/risks:** Need exact-head CI and live dependency canary; then authenticated, versioned Dank Shield policy/consent transport, one-per-guild receiver lease/fencing, fail-closed withdrawal, and consented DAVE receive validation before enabling any audio.
+- **Backlog:** Existing multi-VC policy, VoicePatrol performance benchmarking, automated sanctions, AntiNuke owner UX and branding requests remain outside this narrow slice.
+- **Next step:** Review exact-head CI and fix any failures on this branch. After merging the narrow prerequisite, perform 768 MB Discloud canary of updated `/watchyo`. Then implement and validate a single explicit-consent, isolated DAVE decode canary without switching task.
