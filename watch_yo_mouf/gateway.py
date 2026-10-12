@@ -12,6 +12,7 @@ import discord
 from discord import app_commands
 
 from .config import Settings
+from .voice_readiness import probe_voice_stack
 
 log = logging.getLogger(__name__)
 
@@ -53,11 +54,14 @@ def create_bot(settings: Settings) -> discord.AutoShardedClient:
         if not interaction.guild or not getattr(interaction.user.guild_permissions, "manage_guild", False):
             await interaction.response.send_message("Manage Server permission is required.", ephemeral=True)
             return
+        readiness = probe_voice_stack()
+        prerequisite_label = "ready for live testing" if readiness.ready else "blocked"
         await interaction.response.send_message(
             "🛡️ **Watch Yo Mouf**\n"
             "Gateway: online.\n"
+            f"Voice decoder prerequisites: **{prerequisite_label}** ({readiness.reason}).\n"
             "Voice safety: **not enabled**. No recording, transcription or AI reviews are running.\n"
-            "Dank Shield integration and DAVE receive validation are still pending.",
+            "Dank Shield consent/ownership integration and live DAVE receive validation are still pending.",
             ephemeral=True,
         )
 
