@@ -72,6 +72,60 @@ class BridgeClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await private_bridge_status(), "unavailable")
             client.assert_not_called()
 
+    async def test_signed_dank_shield_response_is_accepted_and_bad_signature_refused(self):
+        body = response_body()
+
+        class Response:
+            status = 200
+            content_length = len(body)
+
+            def __init__(self, nonce, valid):
+                self.headers = {
+                    "X-WYM-Response-Signature": (
+                        response_signature(KEY, nonce, body) if valid else "0" * 64
+                    )
+                }
+                self.content = type("Content", (), {"read": AsyncMock(return_value=body)})()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+        class Session:
+            def __init__(self, valid):
+                self.valid = valid
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+            def get(self, url, *, headers, allow_redirects):
+                self.outer.assertEqual(url, "http://dankbot:8097/v1/status")
+                self.outer.assertFalse(allow_redirects)
+                self.outer.assertIn("X-WYM-Signature", headers)
+                return Response(headers["X-WYM-Nonce"], self.valid)
+
+        for valid, expected in (
+            (True, "authenticated (diagnostics only)"),
+            (False, "unavailable"),
+        ):
+            with self.subTest(valid=valid):
+                test_case = self
+                instance = Session(valid)
+                instance.outer = test_case
+                with patch.dict("os.environ", {
+                    "WATCH_YO_MOUF_BRIDGE_ENABLED": "true",
+                    "WATCH_YO_MOUF_BRIDGE_SECRET": KEY,
+                }, clear=True), patch(
+                    "watch_yo_mouf.voice_bridge_client.aiohttp.ClientSession",
+                    return_value=instance,
+                ):
+                    self.assertEqual(await private_bridge_status(), expected)
+
     async def test_nonresponsive_vlan_returns_unavailable_without_leaking_credentials(self):
         with patch.dict("os.environ", {
             "WATCH_YO_MOUF_BRIDGE_ENABLED": "true",
