@@ -1,0 +1,31 @@
+name: Watch Yo Mouf validation
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile
+        run: python -m compileall -q main.py watch_yo_mouf tests
+      - name: Test
+        run: python -m unittest discover -s tests -v
+      - name: Static check for accidental secret files
+        run: |
+          test ! -f .env
+          test ! -d recordings
