@@ -21,7 +21,7 @@
 - `README.md`: product boundaries, privacy gates, setup and acceptance checks.
 - `.gitignore`/`.discloudignore`: exclude secrets, recordings and runtime data.
 - `main.py`, `watch_yo_mouf/config.py`, `watch_yo_mouf/gateway.py`: isolated environment configuration, automatic/multiworker shard configuration, independent Discord gateway with slash status only.
-- `requirements.txt`, `discloud.config` (1024 MB Python 3.11), `.env.example`: isolated deployment bootstrap.
+- `requirements.txt`, `discloud.config` (originally 1024 MB, now owner-adjusted to **768 MB**, Python 3.11), `.env.example`: isolated deployment bootstrap.
 - `tests/test_config.py`, `tests/test_gateway.py`, `.github/workflows/test.yml`: offline regression tests and Python 3.11/3.13 CI.
 
 ## Validation
@@ -43,9 +43,9 @@
 - Rich multi-VC policy, additional model vendors, optional auto-enforcement and claimed competitor superiority only after the initial live receive/advisory flow and validation meet DoD.
 
 ## Pull request checkpoint
-- Draft PR: https://github.com/UglyGameFace/Watch-Yo-Mouf/pull/1; base `main` at `0b61a56b5511c87c8ee1f3975892861076ce8eb7`.
+- Historical PR #1 **merged**: https://github.com/UglyGameFace/Watch-Yo-Mouf/pull/1; initial base `main` was `0b61a56b5511c87c8ee1f3975892861076ce8eb7`.
 - Focused GitHub Actions run #38316601314: Python 3.11 and 3.13 jobs passed after fixing unconnected-client cleanup. Do not merge based solely on unit checks. Source remains gateway-only, audio entirely inactive.
-- RAM allocation `1024 MB` is an initial canary budget, **not** a tested figure for 10,000 guilds or concurrent rooms. Use separate workers, measured caches and budgets before scaling.
+- Discloud RAM allocation is now **768 MB**, as the owner confirmed and `discloud.config` records. This is not a tested figure for concurrent voice rooms or 10,000 installed guilds. Measure memory and CPU with real load.
 
 ## Next step
 Validate this draft gateway bootstrap CI and real Discord login on a consenting test guild; then trace the current Dank Shield voice consent/store and pinned `community_voice_receive.py` DAVE receive implementation before writing any Watch Yo Mouf audio canary. Keep receiver/consent/policy migration as the **same active task** and leave listening disabled until the privacy and DAVE gates pass.
@@ -58,8 +58,8 @@ Validate this draft gateway bootstrap CI and real Discord login on a consenting 
 - **Source trace:** Dank Shield's voice-safety integration branch `aaa-cinema-pre-pregateway-bind` at SHA `81b85ce16a3c84209e7cb7b3853d334604bafae6`: `voice_safety_consent.py` owns versioned member acceptance in existing member settings, `public_voice_safety.py` owns staff configuration/notice, `community_voice_caption_runtime.py` and `community_voice_receive.py` own the in-process DAVE receive lifecycle, `voice_safety_policy.py` owns advisory classification. Current standalone Watch Yo Mouf must **not** duplicate those authorities or start a competing capture listener.
 - **Dependency finding:** Current Dank Shield receive pins discord.py[voice] 2.7.1, voice_recv commit `03dd1e2dafe85522cc458441cd5b143b136ac836` (inbound `_dave_decrypt`), and bundled libopus 0.1.1. The pinned upstream commit was inspected; static DAVE hook presence is not proof of real decoded traffic.
 - **Changes:** Watch Yo Mouf requirements now pin the identical receive/Opus stack; `voice_readiness.py` performs import/hook/native decoder readiness only, with explicit failure reasons and no microphone connection. Staff-only `/watchyo` reports prerequisite status while continuing to say voice moderation is disabled. CI adds real import/native ABI and negative tests. README refreshed with deployment state and limits.
-- **Validation:** Pending exact-head GitHub Actions (Python 3.11 and 3.13) and diff review. No local networked install or Discord DAVE call was performed in this change; Discloud 768 MB dependency install/load and speaker tests require later canaries.
+- **Validation:** PR #2 exact-head `e0624aa874acb14d96b76a39e29d2545d2f24c0d`, GitHub Actions run `38320148610` **passed** dependency installation, compilation, full unittest discovery, and secret-file checks on Python 3.11 and 3.13. Real dependency imports and bundled Opus decoder ABI were checked. No Discord DAVE call was performed in this change; updated Discloud 768 MB install/load and speaker tests require later canaries.
 - **Cleanup/conflicts:** No existing companion receive implementation was replaced; current Dank Shield capture code remains untouched. No raw audio/transcripts introduced or persisted.
 - **Blockers/risks:** Need exact-head CI and live dependency canary; then authenticated, versioned Dank Shield policy/consent transport, one-per-guild receiver lease/fencing, fail-closed withdrawal, and consented DAVE receive validation before enabling any audio.
 - **Backlog:** Existing multi-VC policy, VoicePatrol performance benchmarking, automated sanctions, AntiNuke owner UX and branding requests remain outside this narrow slice.
-- **Next step:** Review exact-head CI and fix any failures on this branch. After merging the narrow prerequisite, perform 768 MB Discloud canary of updated `/watchyo`. Then implement and validate a single explicit-consent, isolated DAVE decode canary without switching task.
+- **Next step:** Finish PR #2 diff review and final exact-head CI on any checkpoint edits. After merging the narrow prerequisite, perform a 768 MB Discloud canary of updated `/watchyo`. Then implement and validate a single explicit-consent, isolated DAVE decode canary without switching task.
