@@ -13,6 +13,7 @@ from discord import app_commands
 
 from .config import Settings
 from .voice_readiness import probe_voice_stack
+from .voice_bridge_client import private_bridge_status
 
 log = logging.getLogger(__name__)
 
@@ -55,11 +56,13 @@ def create_bot(settings: Settings) -> discord.AutoShardedClient:
             await interaction.response.send_message("Manage Server permission is required.", ephemeral=True)
             return
         readiness = probe_voice_stack()
+        private_bridge = await private_bridge_status()
         prerequisite_label = "ready for live testing" if readiness.ready else "blocked"
         await interaction.response.send_message(
             "🛡️ **Watch Yo Mouf**\n"
             "Gateway: online.\n"
             f"Voice decoder prerequisites: **{prerequisite_label}** ({readiness.reason}).\n"
+            f"Private Dank Shield bridge: **{private_bridge}**.\n"
             "Voice safety: **not enabled**. No recording, transcription or AI reviews are running.\n"
             "Dank Shield consent/ownership integration and live DAVE receive validation are still pending.",
             ephemeral=True,
