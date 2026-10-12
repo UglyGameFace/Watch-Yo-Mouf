@@ -10,14 +10,13 @@ import logging
 
 import discord
 from discord import app_commands
-from discord.ext import commands
 
 from .config import Settings
 
 log = logging.getLogger(__name__)
 
 
-def create_bot(settings: Settings) -> commands.AutoShardedBot:
+def create_bot(settings: Settings) -> discord.AutoShardedClient:
     intents = discord.Intents.none()
     intents.guilds = True
     intents.voice_states = True
@@ -28,7 +27,11 @@ def create_bot(settings: Settings) -> commands.AutoShardedBot:
     if settings.shard_ids is not None:
         options["shard_ids"] = settings.shard_ids
 
-    class WatchYoMoufBot(commands.AutoShardedBot):
+    class WatchYoMoufBot(discord.AutoShardedClient):
+        def __init__(self) -> None:
+            super().__init__(intents=intents, **options)
+            self.tree = app_commands.CommandTree(self)
+
         async def setup_hook(self) -> None:
             if settings.sync_commands:
                 synced = await self.tree.sync()
@@ -41,7 +44,7 @@ def create_bot(settings: Settings) -> commands.AutoShardedBot:
                 self.shard_count,
             )
 
-    bot = WatchYoMoufBot(command_prefix=commands.when_mentioned, intents=intents, **options)
+    bot = WatchYoMoufBot()
 
     @bot.tree.command(name="watchyo", description="Check Watch Yo Mouf's independent gateway status")
     @app_commands.guild_only()
