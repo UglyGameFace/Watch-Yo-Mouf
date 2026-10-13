@@ -68,7 +68,9 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
             def __init__(self, secret, nonce, request_body, valid=True):
                 body = check_response_body(consent_current=True, policy_matches=True)
                 self.content_length = len(body)
-                self.content = type("Content", (), {"read": AsyncMock(return_value=body)})()
+                self.content = type("Content", (), {
+                    "read": AsyncMock(side_effect=[body[:17], body[17:], b""])
+                })()
                 self.headers = {"X-WYM-Response-Signature":
                     sign_check_response(secret, nonce, request_body, body) if valid else "0" * 64}
             async def __aenter__(self):
