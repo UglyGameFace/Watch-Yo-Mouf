@@ -101,3 +101,14 @@ Validate this draft gateway bootstrap CI and real Discord login on a consenting 
 - **Change:** Replace ambiguous private-bridge catch-all result with safe, non-secret stage identifiers for missing configuration, DNS lookup, connection refused, timeout, HTTP auth/disabled/404, and invalid HMAC response; prevent environment HTTP proxy usage. Add mocked network/security cases and run exact-head CI. No consumer-selected URL or new privileges.
 - **Acceptance:** User redeploys Watch Yo Mouf 768 MB and runs staff-only `/watchyo`; collect the specific status label and corresponding Dank Shield private bridge listener startup line. Never ask for or post real secrets. Only positive authenticated private link allows continuing to lease/consent; **not** live audio permission.
 - **Next:** Resolve the identified VLAN/credential failure based on the specific new status. Preserve hard-off audio, Dank Shield's current sole receiver authority, and same active #517 task.
+
+
+## 2026-10-12: signed VLAN authenticated, member eligibility prerequisite draft
+- **Active task:** Voice Safety #517; no other implementation active.
+- **Live evidence:** Discord /watchyo showed gateway online and signed Dank Shield bridge `authenticated (diagnostics only)`. DAVE/Opus preflight passed, live receive not tested.
+- **Branches:** Watch Yo Mouf `feat/517-voice-member-readonly-v1-20261012` based on main `a8ba588f68ac630449ce958fb63e9fc67d95689e`; paired Dank Shield same branch name based on Discloud integration `5ff59ee1ff995a1420fc7a540b5bef35e97be149`.
+- **Source of truth:** Dank Shield voice_safety_consent and guild_config; existing CommunityVoiceCaptionManager still owns receiver. Watch control gate admits zero audio.
+- **Change:** New private 8097 signed POST eligibility read using existing shared bridge secret and replay cache. Binds exact guild/member/channel IDs to a short-lived HMAC request, signs response to same nonce/request. Fresh consent and configured room flags only; never returns IDs or audio and explicitly denies voice capture. Watch client is on-demand, no persistent cache or automatic use.
+- **Validation:** Paired exact-head CI and tests required; live private eligibility call not yet verified. Old status endpoint and public Bot API untouched.
+- **Risk:** Snapshot can become stale after opt-out; no durable fenced lease, revocation stream, cross-process cutover, DAVE live receive, or measured scale. Audio stays off.
+- **Next:** Check CI and diffs on both draft PRs, deploy Dank Shield first for a private read-only canary, then design/test durable lease and revocation before voice capture.
