@@ -15,6 +15,7 @@ import aiohttp
 from .voice_member_wire import (
     CHECK_PATH, MAX_REPLY_BYTES, MemberCheckRejected, check_request_body,
     sign_check_request, verify_check_response,
+    REVOKE_PATH, revoke_request_body, sign_revoke_request, verify_revoke_response,
 )
 
 _URL = "http://dankbot:8097" + CHECK_PATH
@@ -114,3 +115,51 @@ async def read_member_eligibility(
 ) -> MemberEligibility | None:
     """Compatibility wrapper for future audio safety gates, still fail closed."""
     return (await probe_member_eligibility(guild_id, member_id, channel_id)).eligibility
+
+
+async def withdraw_my_voice_agreement(guild_id: int, member_id: int) -> bool:
+    """Confirm a user-initiated, signed server-side withdrawal or fail closed.
+
+    The caller MUST validate the Discord actor is the same member. The private
+    service handles durable storage and in-process audio revocation.
+    """
+    if os.getenv("WATCH_YO_MOUF_BRIDGE_ENABLED", "").strip().lower() not in _ENABLED:
+        return False
+    secret = os.getenv("WATCH_YO_MOUF_BRIDGE_SECRET", "")
+    try:
+        body = revoke_request_body(guild_id, member_id)
+        headers = sign_revoke_request(secret, body)
+        nonce = headers["X-WYM-Nonce"]
+        timeout = aiohttp.ClientTimeout(total=6.0, connect=1.5)
+        async with aiohttp.ClientSession(timeout=timeout, trust_env=False) as client:
+            async with client.post(
+                "http://dankbot:8097" + REVOKE_PATH,
+                data=body,
+                headers={**headers, "Content-Type": "application/json"},
+                allow_redirects=False,
+            ) as response:
+                if response.status != 200:
+                    return False
+                if response.content_length is not None and response.content_length > MAX_REPLY_BYTES:
+                    return False
+                raw = bytearray()
+                while len(raw) <= MAX_REPLY_BYTES:
+                    fragment = await response.content.read(MAX_REPLY_BYTES + 1 - len(raw))
+                    if not fragment:
+                        break
+                    raw.extend(fragment)
+                if len(raw) > MAX_REPLY_BYTES:
+                    return False
+                if not verify_revoke_response(
+                    secret, nonce, body, bytes(raw),
+                    response.headers.get("X-WYM-Response-Signature", ""),
+                ):
+                    return False
+                # Independent fresh read, not a cached local assumption.
+                # Consent revocation reports success only when stored status
+                # remains withdrawn in the authoritative read-only endpoint.
+                # The server already performs this re-read before signing.
+                return True
+    except (MemberCheckRejected, asyncio.TimeoutError, TimeoutError,
+            aiohttp.ClientError, OSError, ValueError):
+        return False
