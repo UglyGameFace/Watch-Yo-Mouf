@@ -14,7 +14,7 @@ from discord import app_commands
 from .config import Settings
 from .voice_readiness import probe_voice_stack
 from .voice_bridge_client import private_bridge_status
-from .voice_member_client import read_member_eligibility
+from .voice_member_client import probe_member_eligibility
 
 log = logging.getLogger(__name__)
 
@@ -60,13 +60,15 @@ class MyConsentCanaryView(discord.ui.View):
             return
 
         await interaction.response.defer(ephemeral=True, thinking=True)
-        eligibility = await read_member_eligibility(
+        probe = await probe_member_eligibility(
             int(interaction.guild.id), int(interaction.user.id), channel_id,
         )
+        eligibility = probe.eligibility
         if eligibility is None:
             message = (
-                "⚠️ Member eligibility could not be authenticated. Check that both apps run "
-                "the merged eligibility revisions and that their existing private bridge is online. "
+                "⚠️ **Member consent check failed.** "
+                f"Stage: **{probe.stage}**.\n"
+                "The private status GET and member eligibility POST are separate checks. "
                 "No audio was authorized."
             )
         else:
