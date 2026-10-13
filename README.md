@@ -2,7 +2,7 @@
 
 Dedicated Discord voice-safety companion for [Dank Shield](https://github.com/UglyGameFace/Dank-Shield).
 
-**Status:** The independent Discord gateway has passed a live `/watchyo` command response on Android. The DAVE decoder prerequisite checks have passed CI on PR #2, which is merged. A private transport diagnostic is now in development. **Audio receive, transcription, moderation, and cross-bot control-plane integration are not implemented or enabled in this companion.**
+**Status:** The independent Discord gateway has passed a live `/watchyo` command response on Android. The DAVE decoder prerequisite checks have passed CI on PR #2, which is merged. The authenticated private bridge has been verified live. A read-only member eligibility client is now staged in a paired draft. **Audio receive, transcription, moderation, and cross-bot control-plane integration are not implemented or enabled in this companion.**
 
 ## Mission
 
@@ -121,3 +121,10 @@ A Discord `/watchyo` response of `Private Dank Shield bridge: unavailable` from 
 A positive `authenticated (diagnostics only)` result requires the paired deployed Dank Shield branch and the same independently generated 32+-byte bridge secret on both hosts. Watch Yo Mouf uses `VLAN=true, HOSTNAME=watchyomouf` and Dank Shield uses `VLAN=true, HOSTNAME=dankbot`; this code always connects exclusively to `http://dankbot:8097/v1/status` and ignores system HTTP proxies and redirects. Redeploy Watch Yo Mouf to see the new diagnostics, then run `/watchyo` from a staff account. Confirm the Discloud logs on Dank Shield show `Voice companion private status bridge listening on VLAN port 8097` and are not reporting a credential or binding error. The log doesn't prove live network reachability; use the signed response for that.
 
 This update changes no monitoring permissions, guild policies, bot commands, environmental variable names, Discloud RAM allocation (768 MB), or live Voice Safety capture state. The receiver stays disabled. **Do not** expose port 8097 publicly or post either secret in Discord, issues, screenshots, or GitHub.
+
+
+## Paired read-only member eligibility check (draft Voice Safety #517)
+
+After live Discord `/watchyo` confirmed **authenticated (diagnostics only)**, this change introduces a separate signed, private `POST /v1/member-eligibility` contract on the existing 8097 VLAN listener. Dank Shield remains the sole owner of configured guild policy and versioned consent. The Watch Yo Mouf `read_member_eligibility(guild_id, member_id, channel_id)` method sends an on-demand body-bound HMAC query with a fresh nonce, never from startup or the Discord command. Replies contain only `consent_current` and `policy_matches`, and explicitly reject any attempt to authorize voice capture; failures return `None`.
+
+No new environment variables, public route, bot permissions, new storage, voice connection, transcript, or AI processing is introduced. Existing `/v1/status` and current bot behavior are unchanged. Deploy **Dank Shield's paired PR first**, then this PR, and verify actual read-only private requests against a consenting test member and a withdrawn agreement. Positive eligibility is only a snapshot, **not permission to listen**. Durable fenced ownership, immediate revocation and live DAVE/MLS decoding remain mandatory before any monitoring or migration.
