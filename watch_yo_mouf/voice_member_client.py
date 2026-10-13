@@ -29,18 +29,48 @@ class MemberEligibility:
     capture_authorized: bool = False
 
 
-async def read_member_eligibility(
+@dataclass(frozen=True, slots=True)
+class MemberEligibilityProbe:
+    """Sanitized outcome for a staff-initiated private network canary."""
+    eligibility: MemberEligibility | None
+    stage: str
+
+
+def _status_stage(code: int) -> str:
+    """HTTP stages have fixed labels; never reflect a server body or exception."""
+    return {
+        401: "POST rejected (HTTP 401: credentials or clock)",
+        403: "POST refused (HTTP 403)",
+        404: "POST endpoint missing (HTTP 404: deployed Dank Shield revision)",
+        409: "POST nonce replay rejected (HTTP 409)",
+        413: "POST request oversized (HTTP 413)",
+        503: "POST service disabled (HTTP 503)",
+    }.get(code, f"POST server returned HTTP {code}")
+
+
+async def probe_member_eligibility(
     guild_id: int, member_id: int, channel_id: int,
-) -> MemberEligibility | None:
-    """Return a fresh, signed diagnostic snapshot or None on any failure."""
+) -> MemberEligibilityProbe:
+    """Bounded on-demand self-check only; never gives receiver authorization.
+
+    The signed GET /v1/status handshake is intentionally separate and faster.
+    This POST may read current guild config and member agreement from Supabase,
+    so its capped 6s timeout is different from the GET's 1.5s. The caller
+    already deferred the Discord interaction. No member data is logged.
+    """
     if os.getenv("WATCH_YO_MOUF_BRIDGE_ENABLED", "").strip().lower() not in _ENABLED:
-        return None
+        return MemberEligibilityProbe(None, "POST disabled in Watch Yo Mouf")
+
     secret = os.getenv("WATCH_YO_MOUF_BRIDGE_SECRET", "")
     try:
         body = check_request_body(guild_id, member_id, channel_id)
         headers = sign_check_request(secret, body)
         nonce = headers["X-WYM-Nonce"]
-        timeout = aiohttp.ClientTimeout(total=1.5, connect=0.75)
+    except MemberCheckRejected:
+        return MemberEligibilityProbe(None, "POST invalid local request or secret")
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=6.0, connect=1.5)
         async with aiohttp.ClientSession(timeout=timeout, trust_env=False) as client:
             async with client.post(
                 _URL, data=body,
@@ -48,24 +78,39 @@ async def read_member_eligibility(
                 allow_redirects=False,
             ) as response:
                 if response.status != 200:
-                    return None
+                    return MemberEligibilityProbe(None, _status_stage(response.status))
                 if response.content_length is not None and response.content_length > MAX_REPLY_BYTES:
-                    return None
+                    return MemberEligibilityProbe(None, "POST signed reply oversized")
                 raw = bytearray()
                 while len(raw) <= MAX_REPLY_BYTES:
-                    # A short StreamReader.read is not EOF; a signed JSON
-                    # response can arrive in several network fragments.
+                    # A short StreamReader.read is not EOF; JSON can be fragmented.
                     fragment = await response.content.read(MAX_REPLY_BYTES + 1 - len(raw))
                     if not fragment:
                         break
                     raw.extend(fragment)
                 if len(raw) > MAX_REPLY_BYTES:
-                    return None
-                result = verify_check_response(
-                    secret, nonce, body, bytes(raw),
-                    response.headers.get("X-WYM-Response-Signature", ""),
-                )
-                return MemberEligibility(**result)
-    except (MemberCheckRejected, asyncio.TimeoutError, TimeoutError,
-            aiohttp.ClientError, OSError, ValueError):
-        return None
+                    return MemberEligibilityProbe(None, "POST signed reply oversized")
+                try:
+                    result = verify_check_response(
+                        secret, nonce, body, bytes(raw),
+                        response.headers.get("X-WYM-Response-Signature", ""),
+                    )
+                except MemberCheckRejected:
+                    return MemberEligibilityProbe(None, "POST signed reply invalid (signature or schema)")
+                return MemberEligibilityProbe(MemberEligibility(**result), "POST authenticated")
+    except (asyncio.TimeoutError, TimeoutError):
+        return MemberEligibilityProbe(None, "POST timed out (private service or consent storage)")
+    except aiohttp.ClientConnectorError as exc:
+        # The error is never surfaced, only a bounded stage without host/secret.
+        if isinstance(exc.os_error, OSError) and getattr(exc.os_error, "errno", None) == 111:
+            return MemberEligibilityProbe(None, "POST connection refused (private port 8097)")
+        return MemberEligibilityProbe(None, "POST VLAN connection failed")
+    except (aiohttp.ClientError, OSError):
+        return MemberEligibilityProbe(None, "POST private transport failed")
+
+
+async def read_member_eligibility(
+    guild_id: int, member_id: int, channel_id: int,
+) -> MemberEligibility | None:
+    """Compatibility wrapper for future audio safety gates, still fail closed."""
+    return (await probe_member_eligibility(guild_id, member_id, channel_id)).eligibility
