@@ -2,12 +2,12 @@
 
 import unittest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import discord
 
 from watch_yo_mouf.config import Settings
-from watch_yo_mouf.gateway import create_bot
+from watch_yo_mouf.gateway import MyConsentCanaryView, create_bot
 
 
 class GatewayTests(unittest.IsolatedAsyncioTestCase):
@@ -31,7 +31,7 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
         response = SimpleNamespace(send_message=AsyncMock())
         interaction = SimpleNamespace(
             guild=object(),
-            user=SimpleNamespace(guild_permissions=SimpleNamespace(manage_guild=True)),
+            user=SimpleNamespace(id=24, guild_permissions=SimpleNamespace(manage_guild=True)),
             response=response,
         )
         await command.callback(interaction)
@@ -39,6 +39,9 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
         args, kwargs = response.send_message.await_args
         self.assertIn("not enabled", args[0])
         self.assertTrue(kwargs["ephemeral"])
+        self.assertIsInstance(kwargs["view"], MyConsentCanaryView)
+        self.assertEqual(kwargs["view"].owner_id, 24)
+        self.assertEqual([button.label for button in kwargs["view"].children], ["Test My Consent"])
 
     async def test_nonadmin_cannot_read_status(self):
         client = self.make_client()
@@ -46,13 +49,81 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
         response = SimpleNamespace(send_message=AsyncMock())
         interaction = SimpleNamespace(
             guild=object(),
-            user=SimpleNamespace(guild_permissions=SimpleNamespace(manage_guild=False)),
+            user=SimpleNamespace(id=24, guild_permissions=SimpleNamespace(manage_guild=False)),
             response=response,
         )
         await command.callback(interaction)
         args, kwargs = response.send_message.await_args
         self.assertIn("Manage Server", args[0])
         self.assertTrue(kwargs["ephemeral"])
+
+
+    @staticmethod
+    def consent_interaction(*, user_id=24, guild_id=71, voice_id=88, staff=True):
+        channel = (
+            SimpleNamespace(id=voice_id, guild=SimpleNamespace(id=guild_id))
+            if voice_id is not None else None
+        )
+        return SimpleNamespace(
+            guild=SimpleNamespace(id=guild_id),
+            user=SimpleNamespace(
+                id=user_id,
+                guild_permissions=SimpleNamespace(manage_guild=staff),
+                voice=SimpleNamespace(channel=channel),
+            ),
+            response=SimpleNamespace(send_message=AsyncMock(), defer=AsyncMock()),
+            followup=SimpleNamespace(send=AsyncMock()),
+        )
+
+    async def test_consent_check_only_available_to_owning_staff(self):
+        view = MyConsentCanaryView(24)
+        for interaction in (
+            self.consent_interaction(user_id=25),
+            self.consent_interaction(staff=False),
+        ):
+            self.assertFalse(await view.interaction_check(interaction))
+            interaction.response.send_message.assert_awaited_once()
+            self.assertTrue(interaction.response.send_message.await_args.kwargs["ephemeral"])
+        self.assertTrue(await view.interaction_check(self.consent_interaction()))
+
+    async def test_consent_button_requires_a_detectable_voice_channel(self):
+        view = MyConsentCanaryView(24)
+        button = view.children[0]
+        interaction = self.consent_interaction(voice_id=None)
+        with patch("watch_yo_mouf.gateway.read_member_eligibility", new_callable=AsyncMock) as check:
+            await button.callback(interaction)
+            check.assert_not_awaited()
+            interaction.response.defer.assert_not_awaited()
+            interaction.response.send_message.assert_awaited_once()
+            self.assertIn("Join the voice channel", interaction.response.send_message.await_args.args[0])
+            self.assertTrue(interaction.response.send_message.await_args.kwargs["ephemeral"])
+
+    async def test_consent_button_checks_only_requesters_own_agreement_without_capture(self):
+        view = MyConsentCanaryView(24)
+        button = view.children[0]
+        for eligibility, markers in (
+            (SimpleNamespace(consent_current=True, policy_matches=True, capture_authorized=False),
+             ("recorded", "matches this VC")),
+            (SimpleNamespace(consent_current=False, policy_matches=False, capture_authorized=False),
+             ("not recorded", "not enabled for this VC")),
+            (None, ("could not be authenticated", "No audio was authorized")),
+        ):
+            with self.subTest(eligibility=eligibility):
+                interaction = self.consent_interaction()
+                with patch(
+                    "watch_yo_mouf.gateway.read_member_eligibility",
+                    new_callable=AsyncMock, return_value=eligibility,
+                ) as check:
+                    await button.callback(interaction)
+                    check.assert_awaited_once_with(71, 24, 88)
+                interaction.response.defer.assert_awaited_once_with(ephemeral=True, thinking=True)
+                interaction.followup.send.assert_awaited_once()
+                message = interaction.followup.send.await_args.args[0]
+                for marker in markers:
+                    self.assertIn(marker, message)
+                self.assertTrue(interaction.followup.send.await_args.kwargs["ephemeral"])
+                self.assertNotIn("voice_capture_authorized=true", message)
+                self.assertNotIn("connected to voice", message)
 
 
 if __name__ == "__main__":
