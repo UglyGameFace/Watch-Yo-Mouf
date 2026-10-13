@@ -1,5 +1,7 @@
 """Private VLAN handshake tests: no Discord connection or voice activity."""
+import asyncio
 import json
+import socket
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -69,7 +71,7 @@ class BridgeClientTests(unittest.IsolatedAsyncioTestCase):
         with patch.dict("os.environ", {"WATCH_YO_MOUF_BRIDGE_ENABLED": "true"}, clear=True), patch(
             "watch_yo_mouf.voice_bridge_client.aiohttp.ClientSession"
         ) as client:
-            self.assertEqual(await private_bridge_status(), "unavailable")
+            self.assertEqual(await private_bridge_status(), "configuration error (missing or invalid Watch Yo Mouf bridge secret)")
             client.assert_not_called()
 
     async def test_signed_dank_shield_response_is_accepted_and_bad_signature_refused(self):
@@ -111,7 +113,7 @@ class BridgeClientTests(unittest.IsolatedAsyncioTestCase):
 
         for valid, expected in (
             (True, "authenticated (diagnostics only)"),
-            (False, "unavailable"),
+            (False, "invalid authenticated bridge response (signature or version)"),
         ):
             with self.subTest(valid=valid):
                 test_case = self
@@ -134,7 +136,7 @@ class BridgeClientTests(unittest.IsolatedAsyncioTestCase):
             "watch_yo_mouf.voice_bridge_client.aiohttp.ClientSession",
             side_effect=OSError("simulated vlan down")
         ):
-            self.assertEqual(await private_bridge_status(), "unavailable")
+            self.assertEqual(await private_bridge_status(), "private network connection failed")
 
 
 if __name__ == "__main__":
