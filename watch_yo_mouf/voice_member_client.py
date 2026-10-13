@@ -51,11 +51,18 @@ async def read_member_eligibility(
                     return None
                 if response.content_length is not None and response.content_length > MAX_REPLY_BYTES:
                     return None
-                raw = await response.content.read(MAX_REPLY_BYTES + 1)
+                raw = bytearray()
+                while len(raw) <= MAX_REPLY_BYTES:
+                    # A short StreamReader.read is not EOF; a signed JSON
+                    # response can arrive in several network fragments.
+                    fragment = await response.content.read(MAX_REPLY_BYTES + 1 - len(raw))
+                    if not fragment:
+                        break
+                    raw.extend(fragment)
                 if len(raw) > MAX_REPLY_BYTES:
                     return None
                 result = verify_check_response(
-                    secret, nonce, body, raw,
+                    secret, nonce, body, bytes(raw),
                     response.headers.get("X-WYM-Response-Signature", ""),
                 )
                 return MemberEligibility(**result)
