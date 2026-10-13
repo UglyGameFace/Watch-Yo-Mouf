@@ -1,11 +1,12 @@
 """Cross-host read-only consent check: no Discord or voice activity."""
 from __future__ import annotations
 
+import asyncio
 import json
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from watch_yo_mouf.voice_member_client import read_member_eligibility
+from watch_yo_mouf.voice_member_client import probe_member_eligibility, read_member_eligibility
 from watch_yo_mouf.voice_member_wire import (
     MemberCheckRejected, check_request_body, check_response_body,
     sign_check_request, sign_check_response, verify_check_request, verify_check_response,
@@ -116,6 +117,91 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
         ):
             self.assertIsNone(await read_member_eligibility(GUILD, MEMBER, CHANNEL))
             self.assertIsNone(await read_member_eligibility(-1, MEMBER, CHANNEL))
+
+
+    async def test_post_http_status_stages_are_specific_and_not_secret_bearing(self):
+        class Response:
+            def __init__(self, status):
+                self.status = status
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                return False
+
+        class Session:
+            def __init__(self, status):
+                self.status = status
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                return False
+            def post(self, *_args, **_kwargs):
+                return Response(self.status)
+
+        expectations = {
+            401: "HTTP 401",
+            404: "HTTP 404",
+            409: "HTTP 409",
+            413: "HTTP 413",
+            500: "HTTP 500",
+            503: "HTTP 503",
+        }
+        for status, expected in expectations.items():
+            with self.subTest(status=status), patch.dict("os.environ", {
+                "WATCH_YO_MOUF_BRIDGE_ENABLED": "true",
+                "WATCH_YO_MOUF_BRIDGE_SECRET": KEY,
+            }, clear=True), patch(
+                "watch_yo_mouf.voice_member_client.aiohttp.ClientSession",
+                return_value=Session(status),
+            ):
+                result = await probe_member_eligibility(GUILD, MEMBER, CHANNEL)
+                self.assertIsNone(result.eligibility)
+                self.assertIn(expected, result.stage)
+                self.assertNotIn(KEY, result.stage)
+                self.assertNotIn(str(MEMBER), result.stage)
+
+    async def test_timeouts_and_invalid_local_input_are_distinguishable(self):
+        with patch.dict("os.environ", {
+            "WATCH_YO_MOUF_BRIDGE_ENABLED": "true",
+            "WATCH_YO_MOUF_BRIDGE_SECRET": KEY,
+        }, clear=True), patch(
+            "watch_yo_mouf.voice_member_client.aiohttp.ClientSession",
+            side_effect=asyncio.TimeoutError(),
+        ):
+            result = await probe_member_eligibility(GUILD, MEMBER, CHANNEL)
+            self.assertIsNone(result.eligibility)
+            self.assertIn("timed out", result.stage)
+        with patch.dict("os.environ", {
+            "WATCH_YO_MOUF_BRIDGE_ENABLED": "true",
+            "WATCH_YO_MOUF_BRIDGE_SECRET": KEY,
+        }, clear=True), patch(
+            "watch_yo_mouf.voice_member_client.aiohttp.ClientSession",
+        ) as session:
+            result = await probe_member_eligibility(-1, MEMBER, CHANNEL)
+            self.assertIsNone(result.eligibility)
+            self.assertIn("invalid local request", result.stage)
+            session.assert_not_called()
+
+    async def test_longer_bounded_post_timeout_is_not_the_get_timeout(self):
+        from watch_yo_mouf import voice_member_client as member_client
+        original = member_client.aiohttp.ClientTimeout
+        settings = []
+        def inspect_timeout(*args, **kwargs):
+            settings.append(kwargs)
+            return original(*args, **kwargs)
+        with patch.dict("os.environ", {
+            "WATCH_YO_MOUF_BRIDGE_ENABLED": "true",
+            "WATCH_YO_MOUF_BRIDGE_SECRET": KEY,
+        }, clear=True), patch(
+            "watch_yo_mouf.voice_member_client.aiohttp.ClientTimeout",
+            side_effect=inspect_timeout,
+        ), patch(
+            "watch_yo_mouf.voice_member_client.aiohttp.ClientSession",
+            side_effect=asyncio.TimeoutError(),
+        ):
+            result = await probe_member_eligibility(GUILD, MEMBER, CHANNEL)
+        self.assertIn("timed out", result.stage)
+        self.assertEqual(settings, [{"total": 6.0, "connect": 1.5}])
 
 
 if __name__ == "__main__":
