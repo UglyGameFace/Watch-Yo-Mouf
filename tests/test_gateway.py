@@ -8,6 +8,7 @@ import discord
 
 from watch_yo_mouf.config import Settings
 from watch_yo_mouf.gateway import MyConsentCanaryView, create_bot
+from watch_yo_mouf.voice_member_client import MemberEligibilityProbe
 
 
 class GatewayTests(unittest.IsolatedAsyncioTestCase):
@@ -90,7 +91,7 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
         view = MyConsentCanaryView(24)
         button = view.children[0]
         interaction = self.consent_interaction(voice_id=None)
-        with patch("watch_yo_mouf.gateway.read_member_eligibility", new_callable=AsyncMock) as check:
+        with patch("watch_yo_mouf.gateway.probe_member_eligibility", new_callable=AsyncMock) as check:
             await button.callback(interaction)
             check.assert_not_awaited()
             interaction.response.defer.assert_not_awaited()
@@ -106,13 +107,15 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
              ("recorded", "matches this VC")),
             (SimpleNamespace(consent_current=False, policy_matches=False, capture_authorized=False),
              ("not recorded", "not enabled for this VC")),
-            (None, ("could not be authenticated", "No audio was authorized")),
+            (None, ("Member consent check failed", "No audio was authorized")),
         ):
             with self.subTest(eligibility=eligibility):
                 interaction = self.consent_interaction()
                 with patch(
-                    "watch_yo_mouf.gateway.read_member_eligibility",
-                    new_callable=AsyncMock, return_value=eligibility,
+                    "watch_yo_mouf.gateway.probe_member_eligibility",
+                    new_callable=AsyncMock, return_value=MemberEligibilityProbe(
+                        eligibility, "POST authenticated" if eligibility else "POST timed out (private service or consent storage)"
+                    ),
                 ) as check:
                     await button.callback(interaction)
                     check.assert_awaited_once_with(71, 24, 88)
@@ -124,6 +127,23 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(interaction.followup.send.await_args.kwargs["ephemeral"])
                 self.assertNotIn("voice_capture_authorized=true", message)
                 self.assertNotIn("connected to voice", message)
+
+
+    async def test_failed_post_stage_is_reported_without_user_details(self):
+        view = MyConsentCanaryView(24)
+        interaction = self.consent_interaction()
+        with patch(
+            "watch_yo_mouf.gateway.probe_member_eligibility",
+            new_callable=AsyncMock,
+            return_value=MemberEligibilityProbe(None, "POST server returned HTTP 500"),
+        ):
+            await view.children[0].callback(interaction)
+        text = interaction.followup.send.await_args.args[0]
+        self.assertIn("POST server returned HTTP 500", text)
+        self.assertIn("No audio was authorized", text)
+        self.assertNotIn("24", text)
+        self.assertNotIn("71", text)
+        self.assertTrue(interaction.followup.send.await_args.kwargs["ephemeral"])
 
 
 if __name__ == "__main__":
