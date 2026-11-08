@@ -4,6 +4,14 @@ Dedicated Discord voice-safety companion for [Dank Shield](https://github.com/Ug
 
 **Status:** The independent Discord gateway has passed a live `/watchyo` command response on Android. The DAVE decoder prerequisite checks have passed CI on PR #2, which is merged. The authenticated private bridge has been verified live. A read-only member eligibility client is now staged in a paired draft. **Audio receive, transcription, moderation, and cross-bot control-plane integration are not implemented or enabled in this companion.**
 
+## Private RivaL Intelligence AI bridge (synthetic test only)
+
+The separate RivaL Intelligence service can provide a **text-only, advisory** `/v1/moderate` review using the existing CPU LFM3 model. This bot adds a staff-only **Test Private AI** control to the existing `/watchyo` status. It sends **one fixed, synthetic sentence** over the private Discloud VLAN to `http://rival-llm:8765/v1/moderate`; it does not join voice, collect a real transcript, or switch on enforcement. A busy CPU returns a clear skip result; no request queue or automatic retries are added. A disconnected host, bad token, invalid model result, or disabled service fails closed.
+
+Enable the independent `RIVAL_LLM_VOICE_ENABLED=true` and `RIVAL_LLM_VOICE_TOKEN=<new random secret>` on the *RivaL-Intelligence* deployment, then set `WATCH_YO_MOUF_LLM_VOICE_ENABLED=true` and the matching `WATCH_YO_MOUF_LLM_VOICE_TOKEN` on the *Watch Yo Mouf* deployment. The token must be at least 32 characters and differ from `RIVAL_LLM_SHARED_TOKEN` and every Discord/bridge credential. This does not authorize monitoring. Keep both flags false until the LLM source has been mirrored, deployed and validated on the existing service, with RivaL trading workload protected.
+
+The separate receiver/consent/lease/STT work below is mandatory before any real member speech can reach this endpoint. The endpoint is not a speech recognizer, and LFM3's labels are not calibrated accuracy. No old weights, research results or trading models are changed.
+
 ## Mission
 
 Support configurable, **consented** voice conduct review without burdening the main Dank Shield process. Distinguish harmful conduct (unwanted sexual remarks, graphic harassment, threats, targeted abuse) from ordinary discussion of identity, relationships, education, quotations, and gaming banter. LGBTQ+ identity must never itself be classified as misconduct.
