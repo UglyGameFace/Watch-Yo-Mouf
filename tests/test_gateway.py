@@ -42,7 +42,7 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(kwargs["ephemeral"])
         self.assertIsInstance(kwargs["view"], MyConsentCanaryView)
         self.assertEqual(kwargs["view"].owner_id, 24)
-        self.assertEqual([button.label for button in kwargs["view"].children], ["Test My Consent"])
+        self.assertEqual([button.label for button in kwargs["view"].children], ["Test My Consent", "Test Private AI"])
 
     async def test_nonadmin_cannot_read_status(self):
         client = self.make_client()
