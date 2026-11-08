@@ -7,6 +7,7 @@ speaker-level consent and immediate revocation.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from dataclasses import dataclass
 
@@ -85,7 +86,7 @@ async def probe_private_ai() -> AIProbe:
                 if len(raw) > _MAX_REPLY:
                     return AIProbe("invalid private AI reply")
                 try:
-                    reply = __import__("json").loads(raw)
+                    reply = json.loads(raw)
                 except (ValueError, UnicodeError):
                     return AIProbe("invalid private AI reply")
                 if not _valid_reply(reply):
