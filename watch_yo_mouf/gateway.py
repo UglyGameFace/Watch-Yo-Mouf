@@ -15,6 +15,7 @@ from .config import Settings
 from .voice_readiness import probe_voice_stack
 from .voice_bridge_client import private_bridge_status
 from .voice_member_client import probe_member_eligibility
+from .voice_llm_client import probe_private_ai
 
 log = logging.getLogger(__name__)
 
@@ -83,6 +84,26 @@ class MyConsentCanaryView(discord.ui.View):
             )
         await interaction.followup.send(message, ephemeral=True)
 
+    @discord.ui.button(label="Test Private AI", emoji="🧠", style=discord.ButtonStyle.secondary)
+    async def test_private_ai(
+        self, interaction: discord.Interaction, button: discord.ui.Button,
+    ) -> None:
+        """Send a fixed nonmember test sentence; no voice or consent is accessed."""
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        result = await probe_private_ai()
+        label = (
+            f"Decision: **{result.decision}**; category: **{result.category}**."
+            if result.decision else "No model verdict."
+        )
+        await interaction.followup.send(
+            "🧠 **Private RivaL Intelligence connectivity test**\n"
+            f"Status: **{result.status}**.\n"
+            f"{label}\n"
+            "Test input is synthetic; no Discord voice, member transcripts, "
+            "recording or enforcement were enabled.",
+            ephemeral=True,
+        )
+
 
 def create_bot(settings: Settings) -> discord.AutoShardedClient:
     intents = discord.Intents.none()
@@ -129,8 +150,8 @@ def create_bot(settings: Settings) -> discord.AutoShardedClient:
             "Gateway: online.\n"
             f"Voice decoder prerequisites: **{prerequisite_label}** ({readiness.reason}).\n"
             f"Private Dank Shield bridge: **{private_bridge}**.\n"
-            "Voice safety: **not enabled**. No recording, transcription or AI reviews are running.\n"
-            "Read-only member consent test is available below. Durable receiver ownership, "
+            "Voice safety: **not enabled**. No member recording, transcription or live AI moderation is running.\n"
+            "Read-only consent and synthetic private AI tests are available below. Durable receiver ownership, "
             "immediate opt-out synchronization and live DAVE validation remain pending.",
             ephemeral=True,
             view=MyConsentCanaryView(int(interaction.user.id)),
