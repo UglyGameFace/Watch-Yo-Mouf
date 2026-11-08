@@ -77,7 +77,7 @@ The Discord Developer Portal app is installed in a test guild and the owner prov
 
 ## Gateway bootstrap (not yet voice moderation)
 
-This repo includes an independent Python 3.11 Discord gateway app, configured through `discloud.config` with a **768 MB** allocation. It deliberately enables only Guild and Voice State gateway intents. No microphone connection, DAVE receive, audio buffers, transcription, AI review or staff enforcement runs in this release. The standalone `/watchyo` staff-only command reports this state honestly.
+This repo includes an independent Python 3.11 Discord gateway app, configured through `discloud.config` with a **768 MB** allocation. It deliberately enables only Guild and Voice State gateway intents. No microphone connection, DAVE receive, audio buffers, live transcription, member-speech AI review or staff enforcement runs in this release. The optional synthetic-text connectivity test is not live moderation. The standalone `/watchyo` staff-only command reports this state honestly.
 
 Set `WATCH_YO_MOUF_TOKEN` **only** in the new bot's Discloud environment. To register the global /watchyo command, enable `WATCH_YO_MOUF_SYNC_COMMANDS=true` for one successful start, then disable command sync. Use `python main.py` locally only with a separately provisioned token. No token or provider credentials are needed for offline tests. Do not use Dank Shield's Discord token.
 
