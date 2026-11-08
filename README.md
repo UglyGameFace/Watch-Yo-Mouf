@@ -12,6 +12,12 @@ Enable the independent `RIVAL_LLM_VOICE_ENABLED=true` and `RIVAL_LLM_VOICE_TOKEN
 
 The separate receiver/consent/lease/STT work below is mandatory before any real member speech can reach this endpoint. The endpoint is not a speech recognizer, and LFM3's labels are not calibrated accuracy. No old weights, research results or trading models are changed.
 
+## Existing Dank Shield DAVE receiver → local Watch Yo Mouf Vosk
+
+The optional worker binds a signed, nonce/replay-protected `POST /v1/voice-transcribe` on private VLAN `watchyomouf:8098` only if `WATCH_YO_MOUF_STT_ENABLED=true` and a strong dedicated `WATCH_YO_MOUF_AUDIO_SECRET` are configured. It accepts only bounded 16 kHz mono PCM, emits an HMAC-authenticated text response and keeps no permanent audio or transcripts. A single in-process worker allows one speech inference at a time; busy requests return 429 rather than piling up. It uses the free Apache-2.0 `vosk-model-small-en-us-0.15` (~40 MB on disk, ~300 MB RAM in typical small-model operation). It uses Vosk's en-us cache/downloader unless a private unpacked model directory is supplied in `WATCH_YO_MOUF_STT_MODEL_PATH`. **Live Discloud 768 MB RAM, STT accuracy and concurrency remain unverified**; if the model is unavailable or downloading, the endpoint returns 503 and all speech processing fails closed.
+
+Dank Shield remains the sole real Discord DAVE receiver; Watch Yo Mouf does not open a voice connection. The paired Dank Shield branch implements explicit voice-specific consent, per-speaker segmentation, signed private audio forwarding, and a separate RivaL Intelligence categorical advisory. No automatic disciplinary actions are allowed. The Discord `/watchyo` status shows local worker readiness. Keep `WATCH_YO_MOUF_STT_ENABLED=false` until both repos have passing validation, the separate staff-only incident destination and fresh individual consent are verified, and a real permitted Discord call proves DAVE decoding and local Vosk latency. Do not treat dependency preflight or a synthetic text probe as live audio success.
+
 ## Mission
 
 Support configurable, **consented** voice conduct review without burdening the main Dank Shield process. Distinguish harmful conduct (unwanted sexual remarks, graphic harassment, threats, targeted abuse) from ordinary discussion of identity, relationships, education, quotations, and gaming banter. LGBTQ+ identity must never itself be classified as misconduct.

@@ -16,6 +16,7 @@ from .voice_readiness import probe_voice_stack
 from .voice_bridge_client import private_bridge_status
 from .voice_member_client import probe_member_eligibility
 from .voice_llm_client import probe_private_ai
+from .voice_worker import VoiceSTTWorker
 
 log = logging.getLogger(__name__)
 
@@ -120,11 +121,23 @@ def create_bot(settings: Settings) -> discord.AutoShardedClient:
         def __init__(self) -> None:
             super().__init__(intents=intents, **options)
             self.tree = app_commands.CommandTree(self)
+            self.voice_worker = VoiceSTTWorker()
 
         async def setup_hook(self) -> None:
+            # The worker listens only on Discloud's private VLAN and only
+            # after explicit opt-in. No second Discord receiver is installed.
+            try:
+                await self.voice_worker.start()
+            except (OSError, ValueError, RuntimeError):
+                self.voice_worker.state = "configuration_error"
+                log.warning("Local STT worker not available; monitoring stays off")
             if settings.sync_commands:
                 synced = await self.tree.sync()
                 log.info("Registered application commands count=%s", len(synced))
+
+        async def close(self) -> None:
+            await self.voice_worker.stop()
+            await super().close()
 
         async def on_ready(self) -> None:
             log.info(
@@ -150,7 +163,8 @@ def create_bot(settings: Settings) -> discord.AutoShardedClient:
             "Gateway: online.\n"
             f"Voice decoder prerequisites: **{prerequisite_label}** ({readiness.reason}).\n"
             f"Private Dank Shield bridge: **{private_bridge}**.\n"
-            "Voice safety: **not enabled**. No member recording, transcription or live AI moderation is running.\n"
+            f"Local offline STT worker: **{bot.voice_worker.state}**.\n"
+            "Voice safety: **not enabled on this bot**. Audio reception stays with Dank Shield; this bot can optionally transcribe authorized private segments.\n"
             "Read-only consent and synthetic private AI tests are available below. Durable receiver ownership, "
             "immediate opt-out synchronization and live DAVE validation remain pending.",
             ephemeral=True,
