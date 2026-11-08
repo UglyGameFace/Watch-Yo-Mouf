@@ -82,7 +82,12 @@ async def probe_private_ai() -> AIProbe:
                     return AIProbe("LLM HTTP " + str(response.status))
                 if response.content_length is not None and response.content_length > _MAX_REPLY:
                     return AIProbe("invalid private AI reply")
-                raw = await response.content.read(_MAX_REPLY + 1)
+                raw = bytearray()
+                while len(raw) <= _MAX_REPLY:
+                    fragment = await response.content.read(_MAX_REPLY + 1 - len(raw))
+                    if not fragment:
+                        break
+                    raw.extend(fragment)
                 if len(raw) > _MAX_REPLY:
                     return AIProbe("invalid private AI reply")
                 try:
