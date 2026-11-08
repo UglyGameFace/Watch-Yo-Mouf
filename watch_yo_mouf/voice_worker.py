@@ -101,6 +101,16 @@ class VoiceSTTWorker:
         self.state = "ready"
         LOG.info("Watch Yo Mouf local STT model ready (no audio capture)")
 
+    async def handle_health(self, request: web.Request) -> web.Response:
+        """Private-VLAN capability readiness, not permission to listen."""
+        del request
+        ready = self.state == "ready" and self.model is not None
+        return web.json_response(
+            {"ready": ready, "model": _ENGLISH_MODEL if ready else "unavailable"},
+            status=200 if ready else 503,
+            headers={"Cache-Control": "no-store"},
+        )
+
     async def handle_audio(self, request: web.Request) -> web.Response:
         if not _enabled():
             return web.Response(status=503)
@@ -154,6 +164,7 @@ class VoiceSTTWorker:
         from .watch_audio_wire import _secret as check_secret
         check_secret(_secret())  # Fail before opening the VLAN port.
         app = web.Application(client_max_size=MAX_AUDIO_BYTES + 1024)
+        app.router.add_get("/v1/stt-health", self.handle_health)
         app.router.add_post(PATH, self.handle_audio)
         runner = web.AppRunner(app, access_log=None)
         await runner.setup()
