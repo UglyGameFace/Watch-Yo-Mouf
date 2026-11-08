@@ -17,7 +17,7 @@ class FakeReply:
         self.status = code
         self.payload = json.dumps(body or {}).encode("utf-8")
         self.content_length = len(self.payload)
-        self.content = SimpleNamespace(read=AsyncMock(return_value=self.payload))
+        self.content = SimpleNamespace(read=AsyncMock(side_effect=[self.payload, b""]))
 
     async def __aenter__(self):
         return self
