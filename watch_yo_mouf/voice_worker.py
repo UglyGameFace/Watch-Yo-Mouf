@@ -129,10 +129,10 @@ class VoiceSTTWorker:
             return web.Response(status=429)
         async with self.request_lock:
             try:
-                transcript = await asyncio.wait_for(
-                    asyncio.to_thread(_recognize, self.model, raw),
-                    timeout=15.0,
-                )
+                # Keep the lock until the native recognition thread actually
+                # returns. Cancelling wait_for(to_thread()) could release
+                # the lock while the CPU inference keeps running.
+                transcript = await asyncio.to_thread(_recognize, self.model, raw)
                 body = response_body(transcript)
                 signature = response_signature(_secret(), nonce, raw, body)
             except (asyncio.TimeoutError, OSError, ValueError, RuntimeError,
