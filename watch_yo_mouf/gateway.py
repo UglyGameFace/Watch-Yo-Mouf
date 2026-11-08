@@ -96,9 +96,9 @@ class MyConsentCanaryView(discord.ui.View):
             if result.decision else "No model verdict."
         )
         await interaction.followup.send(
-            "🧠 **Private RivaL Intelligence connectivity test**\\n"
-            f"Status: **{result.status}**.\\n"
-            f"{label}\\n"
+            "🧠 **Private RivaL Intelligence connectivity test**\n"
+            f"Status: **{result.status}**.\n"
+            f"{label}\n"
             "Test input is synthetic; no Discord voice, member transcripts, "
             "recording or enforcement were enabled.",
             ephemeral=True,
