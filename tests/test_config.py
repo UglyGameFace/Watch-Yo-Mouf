@@ -42,6 +42,15 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaisesRegex(ConfigurationError, "SYNC_COMMANDS"):
             load_settings({"WATCH_YO_MOUF_TOKEN": "secret", "WATCH_YO_MOUF_SYNC_COMMANDS": "maybe"})
 
+    def test_discloud_ram_manifest_tracks_oom_recovery_allocation(self):
+        from pathlib import Path
+
+        manifest = (Path(__file__).resolve().parents[1] / "discloud.config").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("RAM=512", manifest.splitlines())
+        self.assertIn("AUTORESTART=true", manifest.splitlines())
+
     def test_error_messages_never_echo_token(self):
         secret = "do-not-print-my-secret"
         try:
